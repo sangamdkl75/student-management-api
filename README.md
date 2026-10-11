@@ -1,94 +1,102 @@
 # Student Management API
 
-A simple student management application built with FastAPI. It provides secure login, user roles, and student record management through a web frontend and REST API.
+A student-record app with a FastAPI backend and a small browser frontend.
+Users can register and sign in; student access is controlled by roles and
+record ownership.
 
-## Features
+## Project layout
 
-* User registration and login
-* JWT authentication
-* Admin and regular user roles
-* Add, view, update, and delete student records
-* Responsive web frontend
-* Automated tests
-
-## Technologies
-
-* Python and FastAPI
-* SQLAlchemy and SQLite
-* Alembic
-* JWT authentication
-* HTML, CSS, and JavaScript
-* Pytest
-
-## Getting Started
-
-### 1. Clone the Project
-
-```bash
-git clone https://github.com/sangamdkl75/student-management-api.git
-cd student-management-api
+```text
+student-api/
+├── backend/
+│   ├── main.py
+│   ├── database.py
+│   ├── initialize_database.py
+│   ├── routers/
+│   ├── alembic/       # Database migrations
+│   ├── tests/
+│   └── requirements.txt
+├── frontend/          # HTML, CSS, and JavaScript
+├── .env               # Local settings; do not commit
+└── README.md
 ```
 
-### 2. Set Up Python
+## Windows setup
+
+Run these commands in PowerShell from the repository root:
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+python -m pip install -r backend\requirements.txt
 ```
 
-### 3. Configure Environment Variables
+Create `.env` in the repository root:
 
-Create a `.env` file if required by your project. Use the variable names expected by the application.
+```text
+SECRET_KEY=<random-secret-key>
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+DATABASE_URL=sqlite:///./students.db
+FRONTEND_ORIGIN=http://127.0.0.1:5500
+```
 
-**Note:** Never share passwords, secret keys, or your `.env` file publicly.
-
-### 4. Initialize the Database
-
-Follow the database initialization instructions in the project. If you already have a database containing data, check the configuration before initializing it.
-
-### 5. Run the Backend
+Generate a private key locally with:
 
 ```powershell
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+`SECRET_KEY` must be at least 32 bytes. Tokens expire after 30 minutes by
+default; set `ACCESS_TOKEN_EXPIRE_MINUTES` to a positive whole number to
+change the lifetime. `DATABASE_URL` defaults to SQLite. Relative SQLite paths
+are resolved from the repository root, regardless of the command's working
+directory. `FRONTEND_ORIGIN` is optional; the local frontend origin is allowed
+by default.
+
+## Initialize and run
+
+Initialize or update the database from the `backend` folder:
+
+```powershell
+cd backend
+python initialize_database.py
 uvicorn main:app --reload
 ```
 
-Backend: http://127.0.0.1:8000
+The API is at <http://127.0.0.1:8000>. Swagger documentation is at
+<http://127.0.0.1:8000/docs>.
 
-### 6. Run the Frontend
-
-Open a second terminal:
+In a second PowerShell window, start the frontend from the repository root:
 
 ```powershell
-cd frontend
-python -m http.server 5500
+python -m http.server 5500 --bind 127.0.0.1 --directory frontend
 ```
 
-Frontend: http://localhost:5500
+Open <http://127.0.0.1:5500>.
 
-### 7. API Documentation
+## Migrations and tests
 
-Open http://127.0.0.1:8000/docs to explore and test API endpoints.
+The initializer runs Alembic migrations safely and refuses unsupported
+database schemas. To create a migration after changing a model, run from
+`backend`:
 
-### 8. Run Tests
+```powershell
+alembic revision --autogenerate -m "describe the change"
+```
 
-From the project root, run:
+Review the generated migration, then run `python initialize_database.py` to
+apply it. Run tests from `backend`:
 
 ```powershell
 pytest -q
 ```
 
-## Project Structure
+Tests use isolated databases.
 
-```text
-student-management-api/
-├── alembic/       # Database migrations
-├── frontend/      # Web interface
-├── routers/       # API endpoints
-├── tests/         # Automated tests
-├── main.py        # Application entry point
-├── models.py      # Database models
-├── schemas.py     # Data validation
-├── database.py    # Database configuration
-└── requirements.txt
-```
+## Security
+
+- Keep `.env`, database files, passwords, and access tokens private.
+- Use a unique, strong `SECRET_KEY`; never commit it or put it in frontend code.
+- Use HTTPS when deploying.
+- New registrations are regular users. Grant admin access only through a
+  trusted database connection.
