@@ -3,10 +3,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
+from datetime import datetime, timedelta, timezone
 import os
-from dotenv import load_dotenv
 
 import models
+import schemas
 from database import SessionLocal
 
 
@@ -18,8 +19,37 @@ router = APIRouter(
 password_hash = PasswordHash.recommended()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-load_dotenv()
-SECRET_KEY = os.getenv("SECRET_KEY")
+
+def get_secret_key(secret_key: str | None) -> str:
+    if secret_key is None or not secret_key.strip():
+        raise RuntimeError("SECRET_KEY must be set")
+
+    if len(secret_key.encode("utf-8")) < 32:
+        raise RuntimeError("SECRET_KEY must contain at least 32 bytes")
+
+    return secret_key
+
+
+def get_access_token_expiry_minutes(value: str | None) -> int:
+    if value is None:
+        return 30
+    try:
+        minutes = int(value)
+    except ValueError as error:
+        raise RuntimeError(
+            "ACCESS_TOKEN_EXPIRE_MINUTES must be a positive integer"
+        ) from error
+    if minutes <= 0:
+        raise RuntimeError(
+            "ACCESS_TOKEN_EXPIRE_MINUTES must be a positive integer"
+        )
+    return minutes
+
+
+SECRET_KEY = get_secret_key(os.getenv("SECRET_KEY"))
+ACCESS_TOKEN_EXPIRE_MINUTES = get_access_token_expiry_minutes(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
+)
 
 def get_db():
     db = SessionLocal()
@@ -30,10 +60,11 @@ def get_db():
 
 @router.post("/register")
 def register(
-    username: str,
-    password: str,
+    registration: schemas.UserRegistration,
     db: Session = Depends(get_db)
 ):
+    username = registration.username
+    password = registration.password
 
     existing_user = db.query(models.User).filter(
         models.User.username == username
@@ -85,8 +116,12 @@ def login(
             detail="Invalid username or password"
         )
 
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
     token_data = {
-        "sub": user.username
+        "sub": user.username,
+        "exp": expires_at,
     }
 
     token = jwt.encode(

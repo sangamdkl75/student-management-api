@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey
 from database import Base
 
 class Student(Base):
@@ -8,6 +8,11 @@ class Student(Base):
     name = Column(String)
     age = Column(Integer)
     course = Column(String)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True
+    )
 
 class User(Base):
     __tablename__ = "users"

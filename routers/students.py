@@ -24,19 +24,28 @@ def get_db():
 @router.get("/")
 def get_students(
     db: Session = Depends(get_db),
-    current_user: str = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user)
 ):
-    return db.query(models.Student).all()
+    query = db.query(models.Student)
+    if current_user.role != "admin":
+        query = query.filter(models.Student.user_id == current_user.id)
+
+    return query.all()
 
 
 @router.get("/{student_id}")
 def get_student(
     student_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
-    student = db.query(models.Student).filter(
+    query = db.query(models.Student).filter(
         models.Student.id == student_id
-    ).first()
+    )
+    if current_user.role != "admin":
+        query = query.filter(models.Student.user_id == current_user.id)
+
+    student = query.first()
 
     if student is None:
         raise HTTPException(
@@ -51,12 +60,13 @@ def get_student(
 def create_student(
     student: schemas.Student,
     db: Session = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: models.User = Depends(get_current_admin)
 ):
     new_student = models.Student(
         name=student.name,
         age=student.age,
-        course=student.course
+        course=student.course,
+        user_id=current_admin.id
     )
 
     db.add(new_student)
@@ -66,13 +76,11 @@ def create_student(
     return new_student
 
 
-@router.put("/{student_id}")
+@router.put("/{student_id}", dependencies=[Depends(get_current_admin)])
 def update_student(
     student_id: int,
     student: schemas.Student,
-    db: Session = Depends(get_db),
-    current_admin = Depends(get_current_admin)
-
+    db: Session = Depends(get_db)
 ):
     existing_student = db.query(models.Student).filter(
         models.Student.id == student_id
@@ -94,7 +102,7 @@ def update_student(
     return existing_student
 
 
-@router.patch("/{student_id}")
+@router.patch("/{student_id}", dependencies=[Depends(get_current_admin)])
 def patch_student(
     student_id: int,
     student: schemas.StudentUpdate,
@@ -125,11 +133,10 @@ def patch_student(
     return existing_student
 
 
-@router.delete("/{student_id}")
+@router.delete("/{student_id}", dependencies=[Depends(get_current_admin)])
 def delete_student(
     student_id: int,
-    db: Session = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    db: Session = Depends(get_db)
 ):
     student = db.query(models.Student).filter(
         models.Student.id == student_id
@@ -147,4 +154,3 @@ def delete_student(
     return {
         "message": "Student deleted successfully"
     }
-
