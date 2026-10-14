@@ -1,3 +1,4 @@
+
 import os
 from pathlib import Path
 
@@ -12,19 +13,29 @@ load_dotenv(REPOSITORY_ROOT / ".env")
 database_url = make_url(
     os.getenv("DATABASE_URL", "sqlite:///./students.db")
 )
+
 if (
     database_url.get_backend_name() == "sqlite"
     and database_url.database
     and not Path(database_url.database).is_absolute()
 ):
     database_url = database_url.set(
-        database=str((REPOSITORY_ROOT / database_url.database).resolve())
+        database=str(
+            (REPOSITORY_ROOT / database_url.database).resolve()
+        )
     )
+
 DATABASE_URL = database_url.render_as_string(hide_password=False)
+
+connect_args = (
+    {"check_same_thread": False}
+    if database_url.get_backend_name() == "sqlite"
+    else {}
+)
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    connect_args=connect_args
 )
 
 SessionLocal = sessionmaker(
