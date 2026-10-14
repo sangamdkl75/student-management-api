@@ -46,6 +46,7 @@ def get_allowed_origins(frontend_origin: str | None = None) -> list[str]:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+    "https://student-management-api-frontend.vercel.app",
     "https://student-management-api-frontend-enplqf0fq-fuzzy7.vercel.app",
     "http://127.0.0.1:5500",
     "http://localhost:5500",
